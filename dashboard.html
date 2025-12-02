@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pravaah Dashboard - Green Day Initiative</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        
+        :root {
+            --bg-dark-blue: #000033;
+            --bg-accent: #001f4d;
+            --neon-blue: #00FFFF;
+            --text-light: #FFFFFF;
+            --text-secondary: #FFFFFF;
+            --accent-main: #FFFFFF;
+            --separator-color: #00FFFF;
+            --accent-green: #27ae60;
+            --accent-red: #e74c3c;
+            --carbon-save-color: #1abc9c;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            color: var(--text-light);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-dark-blue);
+            position: relative;
+        }
+
+        .dashboard-container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 20px;
+            background-color: transparent; 
+            z-index: 1;
+        }
+
+        .dashboard-header {
+            display: flex;
+            flex-direction: column; 
+            justify-content: center;
+            align-items: center;
+            padding: 20px 30px;
+            background-color: var(--bg-accent); 
+            border-bottom: 1px solid var(--separator-color);
+        }
+
+        .logo-placeholder {
+            height: auto; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 5px 0;
+        }
+
+        .logo {
+            max-height: 100%;
+            max-width: 100%;
+            filter: none;
+        }
+
+       .left-logo {
+            order: 1;
+            height: 180px; 
+        }
+        .left-logo .logo { 
+            max-height: 180px;
+        }
+
+        .pravaah-logo { 
+            order: 2;
+            height: auto;
+            text-align: center; 
+            margin-top: 0px; 
+            width: 300px; 
+            position: relative; 
+        }
+        .pravaah-logo .logo { 
+            max-height: 84px; 
+            display: block; 
+            margin: 0 auto; 
+        }
+        .tagline-container {
+            order: 3;
+            height: auto;
+            text-align: center;
+            margin-top: 5px; 
+            width: 300px;
+            position: relative; 
+        }
+        .tagline {
+            font-size: 0.9em; 
+            color: var(--text-light);
+            text-transform: none; 
+            letter-spacing: 2px;
+            font-weight: 300;
+            margin: 0;
+            position: absolute;
+            top: 0; 
+            right: calc(50% - 255px); 
+            text-align: right; 
+            white-space: nowrap; 
+        }
+        
+        #carbon-reduction-display {
+            position: fixed;
+            bottom: 120px;
+            right: 20px;
+            z-index: 10; 
+            padding: 15px 20px;
+            background-color: var(--carbon-save-color);
+            color: var(--bg-dark-blue);
+            border-radius: 8px;
+            font-weight: 900;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(26, 188, 156, 0.8);
+            width: 150px;
+        }
+
+        #carbon-reduction-display .percentage-value {
+            font-size: 2.5em;
+            display: block;
+            margin: 0;
+            line-height: 1.1;
+        }
+        #carbon-reduction-display .label-text {
+            font-size: 0.8em;
+            display: block;
+            font-weight: 700;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+
+        #live-datetime {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10; 
+            padding: 10px 15px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 5px;
+            font-size: 1em;
+            font-weight: 700;
+            text-align: right;
+            line-height: 1.4;
+            border: 1px solid var(--neon-blue);
+        }
+        
+        #live-datetime .time {
+            color: var(--text-light); 
+            font-size: 1.8em;
+            display: block;
+        }
+        
+        #live-datetime .day-date {
+            font-size: 0.5em;
+            color: var(--text-light);
+            font-weight: 400;
+            display: block;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr); 
+            gap: 25px;
+            padding: 40px 30px;
+            background-color: transparent; 
+        }
+
+        .data-card {
+            background-color: transparent !important; 
+            border: none !important;
+            padding: 0;
+            text-align: center;
+        }
+
+        .large-metric { 
+            grid-column: span 3; 
+        }
+        
+        .separator-placeholder { 
+            grid-column: span 6; 
+            border-top: 1px dashed var(--separator-color);
+            border-bottom: 1px dashed var(--separator-color);
+            padding: 10px 0;
+            margin: 5px 0;
+            color: var(--text-light);
+            font-size: 0.9em;
+            letter-spacing: 0.5px;
+        }
+
+        .separator-placeholder .symbol {
+            font-size: 1.2em; 
+            margin-right: 5px;
+        }
+
+        .carbon-metric {
+            grid-column: span 3; 
+        }
+        
+        .emission-value {
+            color: var(--accent-red);
+        }
+        .saving-value {
+            color: var(--accent-green);
+        }
+
+        .label {
+            font-size: 0.8em;
+            color: var(--text-light);
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        
+        .label .symbol {
+            color: var(--text-light);
+            font-size: 1.2em; 
+            margin-right: 5px;
+            display: inline-block;
+            vertical-align: middle;
+            font-weight: 900; 
+        }
+
+        .value { margin: 0; font-weight: 900; }
+        .large-metric .value { 
+            font-size: 4em; 
+            color: var(--accent-main);
+        }
+        .data-card h3.value { font-size: 2em; }
+        
+        @media (max-width: 768px) {
+            body {
+                align-items: flex-start;
+            }
+            .dashboard-container {
+                width: 100%;
+                margin: 0;
+            }
+            .data-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+                padding: 20px 15px;
+            }
+            
+            .data-card, .large-metric, .separator-placeholder, .carbon-metric { 
+                grid-column: 1 / -1 !important; 
+                padding: 10px 0;
+            }
+            .large-metric .value { font-size: 3em; }
+            .data-card h3.value { font-size: 1.8em; }
+            
+            #carbon-reduction-display {
+                bottom: 100px; 
+                padding: 10px;
+                width: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+
+        <header class="dashboard-header">
+            <div class="logo-placeholder left-logo">
+                <img src="logo1.png" alt="Serendipity Logo" class="logo">
+            </div>
+            
+            <div class="logo-placeholder pravaah-logo">
+                <img src="title.png" alt="Pravaah Project Logo" class="logo">
+            </div>
+        </header>
+
+        <main class="data-grid">
+            <div class="data-card large-metric">
+                <p class="label"><span class="symbol">👣</span> TOTAL STEPS</p>
+                <h1 id="total-steps" class="value">0</h1>
+            </div>
+            <div class="data-card large-metric">
+                <p class="label"><span class="symbol">⚡</span> JOULES OF ENERGY PRODUCED</p>
+                <h1 id="energy-produced" class="value">0</h1>
+            </div>
+
+            <div class="separator-placeholder" style="margin-top: 20px;">
+                <span class="symbol">📡</span> <strong>PRAVAAH: LIVE DATA FEED</strong>
+            </div>
+
+            <div class="data-card carbon-metric">
+                <p class="label"><span class="symbol">📊</span> POWER(Watts)</p>
+                <h3 id="current-power-watts" class="value saving-value">0 W</h3>
+            </div>
+            <div class="data-card carbon-metric">
+                <p class="label"><span class="symbol">💡</span> EQUIVALENT LIGHT USAGE (100W)</p>
+                <h3 id="bulb-runtime-hours" class="value saving-value">0 hours</h3>
+            </div>
+            
+        </main>
+    </div>
+
+    <div id="carbon-reduction-display">
+        <span class="percentage-value" id="co2-reduction-percent">0%</span>
+        <span class="label-text">CO₂ REDUCTION PERCENTAGE</span>
+    </div>
+
+    <div id="live-datetime" class="datetime-display"></div>
+
+    <script>
+        const BULB_POWER_WATT = 100;
+
+        function updateDateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour12: true, 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+            
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const dateString = now.toLocaleDateString('en-US', dateOptions);
+            
+            document.getElementById('live-datetime').innerHTML = `
+                <span class="time">${timeString}</span>
+                <span class="day-date">${dateString}</span>
+            `;
+        }
+
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+        
+        function simulateFetchData() {
+            const data = {
+                totalSteps: Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000, 
+                energyProduced: Math.floor(Math.random() * (20000 - 10000 + 1)) + 10000, 
+            };
+            
+            const energyProduced = data.energyProduced;
+            const secondsRuntime = energyProduced / BULB_POWER_WATT;
+            const hoursRuntime = secondsRuntime / 3600;
+            data.bulbRuntimeHours = hoursRuntime; 
+            
+            data.currentPowerWatts = (Math.random() * (150 - 50) + 50); 
+            
+            data.carbonReductionPercent = (Math.random() * (15 - 5) + 5);
+
+            renderDashboardData(data);
+        }
+
+        function renderDashboardData(data) {
+            document.getElementById('total-steps').textContent = data.totalSteps.toLocaleString();
+            document.getElementById('energy-produced').textContent = data.energyProduced.toLocaleString();
+            
+            document.getElementById('co2-reduction-percent').textContent = data.carbonReductionPercent.toFixed(1) + '%';
+            
+            document.getElementById('current-power-watts').textContent = data.currentPowerWatts.toFixed(1) + ' W';
+            
+            let formattedHours;
+            if (data.bulbRuntimeHours < 1) {
+                const minutes = data.bulbRuntimeHours * 60;
+                formattedHours = minutes.toFixed(1) + ' min';
+            } else {
+                formattedHours = data.bulbRuntimeHours.toFixed(2) + ' hours';
+            }
+            
+            document.getElementById('bulb-runtime-hours').textContent = formattedHours;
+        }
+        
+        simulateFetchData(); 
+        setInterval(simulateFetchData, 5000); 
+    </script>
+</body>
+</html>
