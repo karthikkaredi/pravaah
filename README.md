@@ -1,2 +1,11 @@
-# pravaah
-KINETIC ENERGY HARVESTED
+Pravaah is a smart footstep-based energy harvesting system designed to collect human motion, convert it into electrical energy, and display all collected values in a real-time dashboard. The project contains two main parts: a web-based dashboard built using HTML, CSS, and JavaScript, and a Flask backend API that receives sensor data from an ESP32 and stores it in MongoDB Atlas. Together, they form a complete monitoring system for energy generation, sustainability impact, and sensor analytics.
+
+The dashboard provides a clean, modern, neon-blue themed interface that displays total steps, energy generated in joules, current power in watts, equivalent light-bulb usage, and a live CO₂ reduction percentage. It also includes a real-time clock and date, with all values updating dynamically every few seconds. The layout is optimized for a 1368×768 screen ratio, making it ideal for exhibitions, presentations, and live demo screens such as campus or event displays.
+
+The backend is built using Python Flask and exposes a simple POST API endpoint at /api/sensor-data that accepts proximity readings from the left and right sides of the footstep module. These values are validated, converted into floating point numbers, timestamped, and then stored in a MongoDB Atlas collection using PyMongo. Each document includes left and right proximity values along with the time the data was captured. This enables long-term storage, analytics, and visualization of footstep energy data.
+
+When the ESP32 or sensor module sends data in the form of {"left": number, "right": number}, the API stores it and returns a confirmation response. The dashboard can be connected to this data in the future, although it currently uses simulated values for demonstration purposes. This setup makes the project useful for real-time monitoring of energy harvesting experiments.
+
+To run the backend, you simply install Flask and PyMongo, and start the server, after which the API becomes available on the device’s network IP at port 3000. The dashboard does not require any specialized setup—opening the HTML file in a modern browser is enough to run it. The project is intended for applications such as smart campus installations, sustainability awareness programs, IoT-based research in renewable energy, and footstep energy harvesting prototypes used in competitions or exhibitions.
+
+Overall, Pravaah provides a complete and visually appealing system for capturing, processing, storing, and displaying energy generated from human footsteps, making it ideal for events like Green Day initiatives, project expos, and IoT demonstration
