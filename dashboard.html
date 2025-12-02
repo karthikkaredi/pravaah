@@ -312,7 +312,22 @@
     <div id="live-datetime" class="datetime-display"></div>
 
     <script>
+        const API_ENDPOINT = 'http://192.168.0.107:3000/api/sensor-data';
+        const FETCH_INTERVAL_MS = 5000;
         const BULB_POWER_WATT = 100;
+
+        // Using textbook/realistic constants for calculation
+        const JOULES_PER_STEP = 0.5; // E_step (J) - Realistic energy per step
+        const POWER_PER_ACTIVE_TILE_WATT = 3.0; // P_inst (W) - Realistic instantaneous power per tile
+        const CO2_GOAL_MASS_KG = 10; // M_goal (kg) - Target CO2 mass to save for 100% completion
+        const CO2_FACTOR = 0.0005; // C_factor (kg CO2/J) - CO2 mass saved per Joule of energy produced
+        
+        let lastSuccessfulData = {
+            total_steps: 0,
+            left_tile: 0,
+            right_tile: 0,
+            timestamp: new Date().toISOString()
+        };
 
         function updateDateTime() {
             const now = new Date();
@@ -334,46 +349,68 @@
 
         updateDateTime();
         setInterval(updateDateTime, 1000);
-        
-        function simulateFetchData() {
-            const data = {
-                totalSteps: Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000, 
-                energyProduced: Math.floor(Math.random() * (20000 - 10000 + 1)) + 10000, 
-            };
-            
-            const energyProduced = data.energyProduced;
-            const secondsRuntime = energyProduced / BULB_POWER_WATT;
-            const hoursRuntime = secondsRuntime / 3600;
-            data.bulbRuntimeHours = hoursRuntime; 
-            
-            data.currentPowerWatts = (Math.random() * (150 - 50) + 50); 
-            
-            data.carbonReductionPercent = (Math.random() * (15 - 5) + 5);
 
-            renderDashboardData(data);
+        async function fetchAPIData() {
+            try {
+                const response = await fetch(API_ENDPOINT);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data && typeof data.total_steps === 'number') {
+                    lastSuccessfulData = data; 
+                }
+
+            } catch (error) {
+                console.error(`API Fetch Failed: ${error.message}. Displaying last known data.`);
+            }
+            
+            renderDashboardData(lastSuccessfulData);
         }
+        
+        function renderDashboardData(apiData) {
+            const totalSteps = apiData.total_steps || 0;
+            
+            // 1. Joules of Energy Produced (E_total = Total Steps * E_step)
+            const energyProducedJoules = totalSteps * JOULES_PER_STEP;
+            
+            // 2. Current Power (P_current = (L + R) * P_inst)
+            const currentTileActivity = (apiData.left_tile || 0) + (apiData.right_tile || 0);
+            const currentPowerWatts = currentTileActivity * POWER_PER_ACTIVE_TILE_WATT;
+            
+            // 3. CO2 Mass Reduced (M_CO2 = E_total * C_factor)
+            const co2MassReduced = energyProducedJoules * CO2_FACTOR;
+            
+            // 4. CO2 Reduction Percentage (CO2% = M_CO2 / M_goal * 100)
+            const co2ReductionPercent = Math.min((co2MassReduced / CO2_GOAL_MASS_KG) * 100, 100); 
 
-        function renderDashboardData(data) {
-            document.getElementById('total-steps').textContent = data.totalSteps.toLocaleString();
-            document.getElementById('energy-produced').textContent = data.energyProduced.toLocaleString();
+            // 5. Equivalent Light Usage (T_bulb = E_total / P_bulb / 3600)
+            const secondsRuntime = energyProducedJoules / BULB_POWER_WATT;
+            const hoursRuntime = secondsRuntime / 3600;
+
+            document.getElementById('total-steps').textContent = totalSteps.toLocaleString();
+            document.getElementById('energy-produced').textContent = energyProducedJoules.toLocaleString(undefined, { maximumFractionDigits: 0 });
             
-            document.getElementById('co2-reduction-percent').textContent = data.carbonReductionPercent.toFixed(1) + '%';
+            document.getElementById('co2-reduction-percent').textContent = co2ReductionPercent.toFixed(1) + '%';
             
-            document.getElementById('current-power-watts').textContent = data.currentPowerWatts.toFixed(1) + ' W';
+            document.getElementById('current-power-watts').textContent = currentPowerWatts.toFixed(1) + ' W';
             
             let formattedHours;
-            if (data.bulbRuntimeHours < 1) {
-                const minutes = data.bulbRuntimeHours * 60;
+            if (hoursRuntime < 1) {
+                const minutes = hoursRuntime * 60;
                 formattedHours = minutes.toFixed(1) + ' min';
             } else {
-                formattedHours = data.bulbRuntimeHours.toFixed(2) + ' hours';
+                formattedHours = hoursRuntime.toFixed(2) + ' hours';
             }
             
             document.getElementById('bulb-runtime-hours').textContent = formattedHours;
         }
         
-        simulateFetchData(); 
-        setInterval(simulateFetchData, 5000); 
+        fetchAPIData(); 
+        setInterval(fetchAPIData, FETCH_INTERVAL_MS); 
     </script>
 </body>
 </html>
