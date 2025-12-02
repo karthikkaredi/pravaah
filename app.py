@@ -8,6 +8,10 @@ MONGO_URI = "mongodb+srv://karedikarthik_db_user:Pravaah@esp32.iyujee8.mongodb.n
 DB_NAME = 'esp'
 COLLECTION_NAME = 'values'
 
+# We will use a unique identifier for the single document storing the state
+# This allows us to find and update the same document every time.
+DOCUMENT_ID_FILTER = {"_id": "sensor_state_tracker"}
+
 try:
     client = MongoClient(MONGO_URI)
     db = client[DB_NAME]
@@ -21,44 +25,67 @@ except Exception as e:
 def receive_sensor_data():
     data = request.get_json()
 
-    # Checking for the new keys: 'left_tile' and 'right_tile'
     if not data or 'left_tile' not in data or 'right_tile' not in data:
-        # Update the error message to reflect the new expected keys
         return jsonify({"error": "Invalid data format. Expected {'left_tile': number, 'right_tile': number}"}), 400
 
     try:
-        # Accessing data using the new keys
-        left_val = float(data['left_tile'])
-        right_val = float(data['right_tile'])
+        left_val = int(data['left_tile'])
+        right_val = int(data['right_tile'])
     except ValueError:
-        return jsonify({"error": "Sensor values must be numbers."}), 400
+        return jsonify({"error": "Tile values must be integers (1 or 0)."}), 400
 
-    # 1. DELETE ALL EXISTING DATA
+    # Ensure inputs are 0 or 1
+    if left_val not in (0, 1) or right_val not in (0, 1):
+        return jsonify({"error": "Tile values must be 0 or 1."}), 400
+
     try:
-        delete_result = collection.delete_many({})
-        print(f"Deleted {delete_result.deleted_count} previous documents.")
-    except Exception as e:
-        print(f"Warning: Failed to delete previous documents: {e}") 
+        # 1. Fetch the current state document
+        current_state = collection.find_one(DOCUMENT_ID_FILTER)
 
-    # 2. PREPARE NEW DOCUMENT
-    sensor_document = {
-        # Using the new keys for the database fields for consistency
-        "left_tile_proximity": left_val,
-        "right_tile_proximity": right_val,
-        "timestamp": datetime.now()
-    }
+        # 2. Determine initial total steps if document doesn't exist
+        total_steps = current_state.get('total_steps', 0) if current_state else 0
+        
+        # 3. Calculate new total steps (add current detections)
+        steps_detected_now = left_val + right_val
+        new_total_steps = total_steps + steps_detected_now
 
-    # 3. INSERT NEW DOCUMENT
-    try:
-        result = collection.insert_one(sensor_document)
-        print(f"Document inserted with _id: {result.inserted_id}")
+        # 4. Prepare the updated fields
+        update_fields = {
+            "$set": {
+                "left_tile": left_val,
+                "right_tile": right_val,
+                "timestamp": datetime.now()
+            },
+            "$set": {
+                "total_steps": new_total_steps
+            }
+        }
+        
+        # 5. Update the document (or create it if it doesn't exist - upsert=True)
+        result = collection.update_one(
+            DOCUMENT_ID_FILTER,
+            {
+                "$set": {
+                    "left_tile": left_val,
+                    "right_tile": right_val,
+                    "timestamp": datetime.now(),
+                    "total_steps": new_total_steps
+                }
+            },
+            upsert=True
+        )
+
+        print(f"Total steps updated to: {new_total_steps}")
         return jsonify({
-            "message": "Current sensor data stored successfully",
-            "id": str(result.inserted_id)
-        }), 201
+            "message": "State and step count updated successfully",
+            "left_tile": left_val,
+            "right_tile": right_val,
+            "total_steps": new_total_steps
+        }), 200
+
     except Exception as e:
-        print(f"Error storing data in MongoDB: {e}")
-        return jsonify({"error": "Failed to store sensor data"}), 500
+        print(f"Error processing data in MongoDB: {e}")
+        return jsonify({"error": "Failed to process sensor data"}), 500
 
 if __name__ == '__main__':
     app.run(host='192.168.0.107', port=3000, debug=True)
