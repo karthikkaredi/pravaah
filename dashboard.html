@@ -1,457 +1,108 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pravaah Dashboard - Green Day Initiative</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --bg-dark-blue: #000033;
-            --bg-accent: #001f4d;
-            --neon-blue: #00FFFF;
-            --text-light: #FFFFFF;
-            --text-secondary: #FFFFFF;
-            --accent-main: #FFFFFF;
-            --separator-color: #00FFFF;
-            --accent-green: #27ae60;
-            --accent-red: #e74c3c;
-            --carbon-save-color: #1abc9c;
-        }
-        body {
-            font-family: 'Roboto', sans-serif;
-            color: var(--text-light);
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: var(--bg-dark-blue);
-            position: relative;
-        }
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from pymongo import MongoClient
+from datetime import datetime
 
-        .dashboard-container {
-            width: 90%;
-            max-width: 1200px;
-            margin: 20px;
-            background-color: transparent; 
-            z-index: 1;
-        }
+app = Flask(__name__)
+CORS(app)  
 
-        .dashboard-header {
-            display: flex;
-            flex-direction: column; 
-            justify-content: center;
-            align-items: center;
-            padding: 20px 30px;
-            background-color: var(--bg-accent); 
-            border-bottom: 1px solid var(--separator-color);
-        }
+MONGO_URI = "mongodb+srv://karedikarthik_db_user:Pravaah@esp32.iyujee8.mongodb.net/?appName=esp32"
+DB_NAME = 'esp'
+COLLECTION_NAME = 'values'
 
-        .logo-placeholder {
-            height: auto; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 5px 0;
-        }
+MAX_LOGS = 20
+DELETE_COUNT = 10
 
-        .logo {
-            max-height: 100%;
-            max-width: 100%;
-            filter: none;
-        }
+try:
+    client = MongoClient(MONGO_URI)
+    db = client[DB_NAME]
+    collection = db[COLLECTION_NAME]
+    print("Connected successfully to MongoDB Atlas")
+except Exception as e:
+    print(f"Failed to connect to MongoDB: {e}")
+    pass
 
-        .left-logo {
-            order: 1;
-            height: 180px; 
-        }
-        .left-logo .logo { 
-            max-height: 180px;
-        }
+@app.route('/api/sensor-data', methods=['GET'])
+def get_latest_sensor_data():
+    try:
+        latest_doc = collection.find_one(sort=[("timestamp", -1)])
+        if not latest_doc:
+            return jsonify({"total_steps": 0}), 200
 
-        .pravaah-logo { 
-            order: 2;
-            height: auto;
-            text-align: center; 
-            margin-top: 0px; 
-            width: 300px; 
-            position: relative; 
-        }
-        .pravaah-logo .logo { 
-            max-height: 84px; 
-            display: block; 
-            margin: 0 auto; 
-        }
+        total_steps = latest_doc.get("total_steps_count", 0)
+        return jsonify({"total_steps": total_steps}), 200
 
-        .tagline-container {
-            order: 3;
-            height: auto;
-            text-align: center;
-            margin-top: 5px; 
-            width: 300px;
-            position: relative; 
-        }
-        .tagline {
-            font-size: 0.9em; 
-            color: var(--text-light);
-            text-transform: none; 
-            letter-spacing: 2px;
-            font-weight: 300;
-            margin: 0;
-            position: absolute;
-            top: 0; 
-            right: calc(50% - 255px); 
-            text-align: right; 
-            white-space: nowrap; 
-        }
-        
-        #carbon-reduction-display {
-            position: fixed;
-            bottom: 120px;
-            right: 20px;
-            z-index: 10; 
-            padding: 15px 20px;
-            background-color: var(--carbon-save-color);
-            color: var(--bg-dark-blue);
-            border-radius: 8px;
-            font-weight: 900;
-            text-align: center;
-            box-shadow: 0 0 15px rgba(26, 188, 156, 0.8);
-            width: 150px;
-        }
+    except Exception as e:
+        print(f"Error fetching latest sensor data: {e}")
+        return jsonify({"error": "Failed to fetch latest sensor data"}), 500
 
-        #carbon-reduction-display .percentage-value {
-            font-size: 2em;
-            display: block;
-            margin: 0;
-            line-height: 1.1;
-        }
-        #carbon-reduction-display .label-text {
-            font-size: 0.8em;
-            display: block;
-            font-weight: 700;
-            margin-top: 5px;
-            text-transform: uppercase;
-        }
 
-        #live-datetime {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 10; 
-            padding: 10px 15px;
-            background-color: rgba(0, 0, 0, 0.4);
-            border-radius: 5px;
-            font-size: 1em;
-            font-weight: 700;
-            text-align: right;
-            line-height: 1.4;
-            border: 1px solid var(--neon-blue);
-        }
-        
-        #live-datetime .time {
-            color: var(--text-light); 
-            font-size: 1.8em;
-            display: block;
-        }
-        
-        #live-datetime .day-date {
-            font-size: 0.5em;
-            color: var(--text-light);
-            font-weight: 400;
-            display: block;
-        }
+@app.route('/api/sensor-data', methods=['POST'])
+def receive_sensor_data():
+    data = request.get_json()
 
-        .data-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr); 
-            gap: 25px;
-            padding: 40px 30px;
-            background-color: transparent; 
-        }
+    if not data or 'left_tile' not in data or 'right_tile' not in data:
+        return jsonify({
+            "error": "Invalid data format. Expected {'left_tile': 0 or 1, 'right_tile': 0 or 1}"
+        }), 400
 
-        .data-card {
-            background-color: transparent !important; 
-            border: none !important;
-            padding: 0;
-            text-align: center;
-        }
+    try:
+        curr_left = int(data['left_tile'])
+        curr_right = int(data['right_tile'])
+        if curr_left not in (0, 1) or curr_right not in (0, 1):
+            return jsonify({"error": "Tile values must be 0 or 1."}), 400
+    except ValueError:
+        return jsonify({"error": "Tile values must be integers (0 or 1)."}), 400
 
-        .large-metric { 
-            grid-column: span 3; 
-        }
-        
-        .separator-placeholder { 
-            grid-column: span 6; 
-            border-top: 1px dashed var(--separator-color);
-            border-bottom: 1px dashed var(--separator-color);
-            padding: 10px 0;
-            margin: 5px 0;
-            color: var(--text-light);
-            font-size: 0.9em;
-            letter-spacing: 0.5px;
-        }
+    previous_total_steps = 0
+    prev_left = 0
+    prev_right = 0
+    try:
+        latest_doc_cursor = collection.find().sort("timestamp", -1).limit(1)
+        latest_doc = next(latest_doc_cursor, None)
+        if latest_doc:
+            previous_total_steps = latest_doc.get('total_steps_count', 0)
+            prev_left = latest_doc.get('left_tile_state', 0)
+            prev_right = latest_doc.get('right_tile_state', 0)
+    except Exception as e:
+        print(f"Warning: Could not retrieve previous step count or states: {e}")
+    new_steps = 0
+    if prev_left == 0 and curr_left == 1:
+        new_steps += 1
+    if prev_right == 0 and curr_right == 1:
+        new_steps += 1
 
-        .separator-placeholder .symbol {
-            font-size: 1.2em; 
-            margin-right: 5px;
-        }
+    new_total_steps = previous_total_steps + new_steps
+    try:
+        current_log_count = collection.count_documents({})
+        if current_log_count >= MAX_LOGS:
+            oldest_logs = collection.find().sort("timestamp", 1).limit(DELETE_COUNT)
+            oldest_ids = [doc['_id'] for doc in oldest_logs]
 
-        .carbon-metric {
-            grid-column: span 3; 
-        }
-        
-        .emission-value {
-            color: var(--accent-red);
-        }
-        .saving-value {
-            color: var(--accent-green);
-        }
+            if oldest_ids:
+                delete_result = collection.delete_many({"_id": {"$in": oldest_ids}})
+                print(f"Deleted {delete_result.deleted_count} oldest documents to maintain log size.")
 
-        .label {
-            font-size: 0.8em;
-            color: var(--text-light);
-            margin-bottom: 5px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-        
-        .label .symbol {
-            color: var(--text-light);
-            font-size: 1.2em; 
-            margin-right: 5px;
-            display: inline-block;
-            vertical-align: middle;
-            font-weight: 900; 
-        }
+    except Exception as e:
+        print(f"Warning: Failed during log cleanup: {e}")
+    sensor_document = {
+        "left_tile_state": curr_left,
+        "right_tile_state": curr_right,
+        "total_steps_count": new_total_steps,
+        "new_steps_added": new_steps,
+        "timestamp": datetime.now()
+    }
 
-        .value { margin: 0; font-weight: 900; }
-        .large-metric .value { 
-            font-size: 4em; 
-            color: var(--accent-main);
-        }
-        .data-card h3.value { font-size: 2em; }
-        
-        @media (max-width: 768px) {
-            body {
-                align-items: flex-start;
-            }
-            .dashboard-container {
-                width: 100%;
-                margin: 0;
-            }
-            .data-grid {
-                grid-template-columns: 1fr;
-                gap: 30px;
-                padding: 20px 15px;
-            }
-            
-            .data-card, .large-metric, .separator-placeholder, .carbon-metric { 
-                grid-column: 1 / -1 !important; 
-                padding: 10px 0;
-            }
-            .large-metric .value { font-size: 3em; }
-            .data-card h3.value { font-size: 1.8em; }
-            
-            #carbon-reduction-display {
-                bottom: 100px; 
-                padding: 10px;
-                width: 120px;
-            }
-        }
-    </style>
-</head>
-<body>
-
-    <div class="dashboard-container">
-
-        <header class="dashboard-header">
-            <div class="logo-placeholder left-logo">
-                <img src="logo1.png" alt="Serendipity Logo" class="logo">
-            </div>
-            
-            <div class="logo-placeholder pravaah-logo">
-                <img src="title.png" alt="Pravaah Project Logo" class="logo">
-            </div>
-        </header>
-
-        <main class="data-grid">
-            <div class="data-card large-metric">
-                <p class="label"><span class="symbol">👣</span> TOTAL STEPS</p>
-                <h1 id="total-steps" class="value">0</h1>
-            </div>
-            <div class="data-card large-metric">
-                <p class="label"><span class="symbol">⚡</span> JOULES OF ENERGY PRODUCED</p>
-                <h1 id="energy-produced" class="value">0</h1>
-            </div>
-
-            <div class="separator-placeholder" style="margin-top: 20px;">
-                <span class="symbol">📡</span> <strong>PRAVAAH: LIVE DATA FEED</strong>
-            </div>
-
-            <div class="data-card carbon-metric">
-                <p class="label"><span class="symbol">📊</span> POWER (Watts)</p>
-                <h3 id="current-power-watts" class="value saving-value">0 W</h3>
-            </div>
-            <div class="data-card carbon-metric">
-                <p class="label"><span class="symbol">💡</span> EQUIVALENT LIGHT USAGE (100W)</p>
-                <h3 id="bulb-runtime-hours" class="value saving-value">0 hours</h3>
-            </div>
-            
-        </main>
-    </div>
-
-    <div id="carbon-reduction-display">
-        <span class="label-text">CO₂ Emission Reduced By</span>
-        <span class="percentage-value" id="co2-reduction-percent">0%</span>
-        
-    </div>
-
-    <div id="live-datetime" class="datetime-display"></div>
-
-    <script>
-        // === CONFIG ===
-        const API_ENDPOINT = 'http://192.168.0.107:3000/api/sensor-data';
-        const FETCH_INTERVAL_MS = 1000;  // Updated: Fetch every 1 second
-         const BULB_POWER_WATT = 100; // 100W bulb
-
-// Real step energy
-const PULSE_VOLTAGE = 9;
-const PULSE_CURRENT = 1.2;
-const PULSE_DURATION_SECONDS = 0.5;
-
-const PULSE_POWER_WATTS = PULSE_VOLTAGE * PULSE_CURRENT;
-const JOULES_PER_STEP = PULSE_POWER_WATTS * PULSE_DURATION_SECONDS;
-
-// CO₂ calculation (India average)
-const EMISSION_FACTOR_KG_PER_KWH = 0.757;
-
-        // Only storing total_steps from API
-        let lastSuccessfulData = {
-    total_steps: Number(localStorage.getItem('pravaah_total_steps') || 0)
-};
-
-        // For estimating power based on change in steps over time
-        let lastTotalSteps = 0;
-        let lastUpdateTimeMs = null;
-
-        // === CLOCK ===
-        function updateDateTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('en-US', { 
-                hour12: true, 
-                hour: '2-digit', 
-                minute: '2-digit', 
-                second: '2-digit' 
-            });
-            
-            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const dateString = now.toLocaleDateString('en-US', dateOptions);
-            
-            document.getElementById('live-datetime').innerHTML = `
-                <span class="time">${timeString}</span>
-                <span class="day-date">${dateString}</span>
-            `;
-        }
-
-        updateDateTime();
-        setInterval(updateDateTime, 1000);
-
-        // === FETCH ONLY TOTAL_STEPS FROM API ===
-        async function fetchAPIData() {
-            try {
-                const response = await fetch(API_ENDPOINT);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                
-                // Expecting: { "total_steps": <number> }
-                if (data && typeof data.total_steps === 'number') {
-                    lastSuccessfulData.total_steps = data.total_steps;
-                }
-
-            } catch (error) {
-                console.error(`API Fetch Failed: ${error.message}. Displaying last known data.`);
-            }
-            
-            renderDashboardData(lastSuccessfulData);
-        }
-
-        // === USE ONLY total_steps TO CALCULATE ALL METRICS ===
-        function renderDashboardData(apiData) {
-            const totalSteps = apiData.total_steps || 0;
-                const energyProducedJoules = totalSteps * JOULES_PER_STEP;
-
-let currentPowerWatts = 0;
-if (!window.startTimeMs) window.startTimeMs = Date.now();
-const elapsedSeconds = (Date.now() - window.startTimeMs) / 1000;
-if (elapsedSeconds > 0) currentPowerWatts = energyProducedJoules / elapsedSeconds;
-const nowMs = Date.now();
-
-if (lastUpdateTimeMs !== null && totalSteps >= lastTotalSteps) {
-    const deltaSteps = totalSteps - lastTotalSteps;
-    const deltaEnergy = deltaSteps * JOULES_PER_STEP;
-    const deltaTime = (nowMs - lastUpdateTimeMs) / 1000;
-    if (deltaTime > 0) currentPowerWatts = deltaEnergy / deltaTime;
-}
-
-lastTotalSteps = totalSteps;
-lastUpdateTimeMs = nowMs;
-
-// bulb runtime (100W)
-const secondsRuntime = energyProducedJoules / BULB_POWER_WATT;
-const hoursRuntime = secondsRuntime / 3600;
-
-// CO₂ reduction
-const energyKWh = energyProducedJoules / 3600000;
-const co2GridKg = energyKWh * EMISSION_FACTOR_KG_PER_KWH;
-const co2ReductionPercent = co2GridKg > 0 ? 100 : 0;
-            
-            if (lastUpdateTimeMs !== null && totalSteps >= lastTotalSteps) {
-                const deltaSteps = totalSteps - lastTotalSteps;
-                const deltaEnergyJoules = deltaSteps * JOULES_PER_STEP;
-                const deltaTimeSeconds = (nowMs - lastUpdateTimeMs) / 1000;
-
-                if (deltaTimeSeconds > 0) {
-                    // Power = Energy / Time = Joules / second = Watts
-                    currentPowerWatts = deltaEnergyJoules / deltaTimeSeconds;
-                }
-            }
-
-            lastTotalSteps = totalSteps;
-            lastUpdateTimeMs = nowMs;
-
-          
-
-            // === UPDATE UI ===
-            document.getElementById('total-steps').textContent = totalSteps.toLocaleString();
-            document.getElementById('energy-produced').textContent = energyProducedJoules.toLocaleString();
-
-            document.getElementById('co2-reduction-percent').textContent = co2ReductionPercent.toFixed(1) + '%';
-
-            document.getElementById('current-power-watts').textContent = currentPowerWatts.toFixed(1) + ' W';
-
-            let formattedHours;
-            if (hoursRuntime < 1) {
-                const minutes = hoursRuntime * 60;
-                formattedHours = minutes.toFixed(1) + ' min';
-            } else {
-                formattedHours = hoursRuntime.toFixed(2) + ' hours';
-            }
-            
-           document.getElementById('bulb-runtime-hours').textContent =
-    hoursRuntime.toFixed(2) + ' hours';
-        }
-        
-        // Initial fetch + polling
-        fetchAPIData(); 
-        setInterval(fetchAPIData, FETCH_INTERVAL_MS); 
-    </script>
-</body>
-</html>
+    try:
+        result = collection.insert_one(sensor_document)
+        print(f"Document inserted with _id: {result.inserted_id}. New steps added: {new_steps}. Total: {new_total_steps}")
+        return jsonify({
+            "message": "Sensor data stored successfully and log limits checked",
+            "id": str(result.inserted_id),
+            "total_steps": new_total_steps
+        }), 201
+    except Exception as e:
+        print(f"Error storing data in MongoDB: {e}")
+        return jsonify({"error": "Failed to store sensor data"}), 500
+if __name__ == '__main__':
+    app.run(host='192.168.0.107', port=3000, debug=True)
