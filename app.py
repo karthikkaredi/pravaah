@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes/endpoints
+CORS(app)  
 
 MONGO_URI = "mongodb+srv://karedikarthik_db_user:Pravaah@esp32.iyujee8.mongodb.net/?appName=esp32"
 DB_NAME = 'esp'
@@ -22,14 +22,11 @@ except Exception as e:
     print(f"Failed to connect to MongoDB: {e}")
     pass
 
-
-# ---------- GET latest total steps for dashboard ----------
 @app.route('/api/sensor-data', methods=['GET'])
 def get_latest_sensor_data():
     try:
         latest_doc = collection.find_one(sort=[("timestamp", -1)])
         if not latest_doc:
-            # No data yet – just return 0 steps
             return jsonify({"total_steps": 0}), 200
 
         total_steps = latest_doc.get("total_steps_count", 0)
@@ -57,7 +54,6 @@ def receive_sensor_data():
     except ValueError:
         return jsonify({"error": "Tile values must be integers (0 or 1)."}), 400
 
-    # Get previous total steps and states
     previous_total_steps = 0
     prev_left = 0
     prev_right = 0
@@ -70,8 +66,6 @@ def receive_sensor_data():
             prev_right = latest_doc.get('right_tile_state', 0)
     except Exception as e:
         print(f"Warning: Could not retrieve previous step count or states: {e}")
-
-    # Calculate new steps based on state changes (add 1 only on 0->1 transition per tile)
     new_steps = 0
     if prev_left == 0 and curr_left == 1:
         new_steps += 1
@@ -79,8 +73,6 @@ def receive_sensor_data():
         new_steps += 1
 
     new_total_steps = previous_total_steps + new_steps
-
-    # Log cleanup to maintain size limit
     try:
         current_log_count = collection.count_documents({})
         if current_log_count >= MAX_LOGS:
@@ -93,8 +85,6 @@ def receive_sensor_data():
 
     except Exception as e:
         print(f"Warning: Failed during log cleanup: {e}")
-
-    # Insert new document
     sensor_document = {
         "left_tile_state": curr_left,
         "right_tile_state": curr_right,
@@ -114,7 +104,5 @@ def receive_sensor_data():
     except Exception as e:
         print(f"Error storing data in MongoDB: {e}")
         return jsonify({"error": "Failed to store sensor data"}), 500
-
-
 if __name__ == '__main__':
     app.run(host='192.168.0.107', port=3000, debug=True)
