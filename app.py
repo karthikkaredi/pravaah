@@ -4,14 +4,15 @@ from pymongo import MongoClient
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)  
+CORS(app)
 
 MONGO_URI = "mongodb+srv://karedikarthik_db_user:Pravaah@esp32.iyujee8.mongodb.net/?appName=esp32"
 DB_NAME = 'esp'
 COLLECTION_NAME = 'values'
 
-MAX_LOGS = 20
-DELETE_COUNT = 10
+# Updated limits:
+MAX_LOGS = 100      # keep up to 100 documents
+DELETE_COUNT = 50   # when limit reached, delete oldest 50
 
 try:
     client = MongoClient(MONGO_URI)
@@ -21,6 +22,7 @@ try:
 except Exception as e:
     print(f"Failed to connect to MongoDB: {e}")
     pass
+
 
 @app.route('/api/sensor-data', methods=['GET'])
 def get_latest_sensor_data():
@@ -57,6 +59,8 @@ def receive_sensor_data():
     previous_total_steps = 0
     prev_left = 0
     prev_right = 0
+
+    # Get last document to continue step count and tile states
     try:
         latest_doc_cursor = collection.find().sort("timestamp", -1).limit(1)
         latest_doc = next(latest_doc_cursor, None)
@@ -66,6 +70,8 @@ def receive_sensor_data():
             prev_right = latest_doc.get('right_tile_state', 0)
     except Exception as e:
         print(f"Warning: Could not retrieve previous step count or states: {e}")
+
+    # Count new steps from rising edges
     new_steps = 0
     if prev_left == 0 and curr_left == 1:
         new_steps += 1
@@ -73,6 +79,8 @@ def receive_sensor_data():
         new_steps += 1
 
     new_total_steps = previous_total_steps + new_steps
+
+    # Cleanup old logs when hitting limit
     try:
         current_log_count = collection.count_documents({})
         if current_log_count >= MAX_LOGS:
@@ -85,6 +93,7 @@ def receive_sensor_data():
 
     except Exception as e:
         print(f"Warning: Failed during log cleanup: {e}")
+
     sensor_document = {
         "left_tile_state": curr_left,
         "right_tile_state": curr_right,
@@ -95,7 +104,10 @@ def receive_sensor_data():
 
     try:
         result = collection.insert_one(sensor_document)
-        print(f"Document inserted with _id: {result.inserted_id}. New steps added: {new_steps}. Total: {new_total_steps}")
+        print(
+            f"Document inserted with _id: {result.inserted_id}. "
+            f"New steps added: {new_steps}. Total: {new_total_steps}"
+        )
         return jsonify({
             "message": "Sensor data stored successfully and log limits checked",
             "id": str(result.inserted_id),
@@ -104,5 +116,7 @@ def receive_sensor_data():
     except Exception as e:
         print(f"Error storing data in MongoDB: {e}")
         return jsonify({"error": "Failed to store sensor data"}), 500
+
+
 if __name__ == '__main__':
-    app.run(host='192.168.0.107', port=3000, debug=True)
+    app.run(host='10.198.243.1', port=3000, debug=True)
