@@ -228,14 +228,13 @@
     <div id="live-datetime"></div>
     <script>
         const API_ENDPOINT = 'http://10.198.243.1:3000/api/sensor-data';
-        const FETCH_INTERVAL_MS = 1000; 
+        const FETCH_INTERVAL_MS = 1000;
         const JOULES_PER_STEP = 5.6;
-        const BULB_WATTAGE_W = 15; // 15W bulb
-        const BASELINE_STEPS = 10000; // start counting from 10,000
+        const BULB_WATTAGE_W = 15; 
+        const BASELINE_STEPS = 10000; 
 
         let lastSuccessfulData = {
-            // store only incremental steps from API; baseline is separate
-            total_steps: Number(localStorage.getItem('pravaah_total_steps') || 0)
+            total_steps: 0
         };
 
         function updateDateTime() {
@@ -246,18 +245,24 @@
 
         async function fetchAPIData() {
             try {
+                // Fetch data from the Flask API
                 const response = await fetch(API_ENDPOINT, { cache: 'no-store' });
-                if (!response.ok) throw new Error(`Server returned ${response.status}`);
-
-                const data = await response.json();
-                if (typeof data.total_steps === 'number') {
-                    lastSuccessfulData.total_steps = data.total_steps;
-                    localStorage.setItem('pravaah_total_steps', data.total_steps);
+                
+                // If response is successful, update lastSuccessfulData
+                if (response.ok) {
+                    const data = await response.json();
+                    if (typeof data.total_steps === 'number') {
+                        lastSuccessfulData.total_steps = data.total_steps;
+                    }
+                } else {
+                    console.warn(`API returned status: ${response.status}`);
                 }
-            } catch {
-                console.warn('API unreachable, showing last saved data');
+            } catch (error) {
+                // Log error but continue showing last good data
+                console.error('Error fetching API data:', error);
             }
 
+            // Always render the dashboard using the latest data (successful or last known good data)
             renderDashboardData(lastSuccessfulData);
         }
 
@@ -267,25 +272,18 @@
 
             const energyProducedJoules = totalSteps * JOULES_PER_STEP;
 
-            // kept name same, but this is effectively energy / 3600
+            // Energy calculations
             const currentPowerWatts = energyProducedJoules / 3600;
-
-            // Energy in Wh
             const energyWh = energyProducedJoules / 3600;
-
-            // Time (in minutes) = (Energy (Wh) / Power (W)) * 60
             const timeMinutes = (energyWh / BULB_WATTAGE_W) * 60;
 
             let runtimeDisplay;
             if (timeMinutes < 60) {
-                // less than 1 hour → minutes
                 runtimeDisplay = timeMinutes.toFixed(1) + ' minutes';
             } else if (timeMinutes < 1440) {
-                // less than 1 day → hours
                 const hours = timeMinutes / 60;
                 runtimeDisplay = hours.toFixed(2) + ' hours';
             } else {
-                // 1 day or more → days
                 const days = timeMinutes / (60 * 24);
                 runtimeDisplay = days.toFixed(2) + ' days';
             }
@@ -298,11 +296,12 @@
             document.getElementById('co2-reduction-percent').textContent = '36.9%';
         }
 
+        // Initial setup and recurring timers
         updateDateTime();
-        fetchAPIData();
+        fetchAPIData(); // Initial fetch
 
         setInterval(updateDateTime, 1000);
-        setInterval(fetchAPIData, FETCH_INTERVAL_MS);
+        setInterval(fetchAPIData, FETCH_INTERVAL_MS); // Fetch data every 1000ms (1 second)
     </script>
 </body>
 </html>
