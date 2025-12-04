@@ -227,7 +227,7 @@
     </div>
     <div id="live-datetime"></div>
     <script>
-        const API_ENDPOINT = 'http://10.198.243.1:3000/api/sensor-data';
+        const API_ENDPOINT = 'http://192.168.0.107:3000/api/sensor-data';
         const FETCH_INTERVAL_MS = 1000;
         const JOULES_PER_STEP = 5.6;
         const BULB_WATTAGE_W = 15; 
@@ -276,6 +276,11 @@
             const currentPowerWatts = energyProducedJoules / 3600;
             const energyWh = energyProducedJoules / 3600;
             const timeMinutes = (energyWh / BULB_WATTAGE_W) * 60;
+            const energyKWh = energyProducedJoules / 3_600_000;
+            const co2bygrid = 0.015*(totalSteps/1250)*757;
+            const energybypravaah = (0.015*(totalSteps/1500))-energyKWh;
+            const co2bypravaah = energybypravaah*757;
+            const co2ReductionPercent = ((co2bygrid-co2bypravaah) / co2bygrid) * 100;
 
             let runtimeDisplay;
             if (timeMinutes < 60) {
@@ -293,7 +298,7 @@
             document.getElementById('current-power-watts').textContent = currentPowerWatts.toFixed(1) + ' W';
             document.getElementById('bulb-runtime-hours').textContent = runtimeDisplay;
 
-            document.getElementById('co2-reduction-percent').textContent = '36.9%';
+            document.getElementById('co2-reduction-percent').textContent = co2ReductionPercent.toFixed(1) + '%';
         }
 
         // Initial setup and recurring timers
