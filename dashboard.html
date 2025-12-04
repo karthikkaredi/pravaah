@@ -198,7 +198,7 @@
         <main class="data-grid">
             <div class="data-card large-metric">
                 <p class="label"><span class="symbol">👣</span>TOTAL STEPS</p>
-                <h1 id="total-steps" class="value">800</h1>
+                <h1 id="total-steps" class="value">10,000</h1>
             </div>
             <div class="data-card large-metric">
                 <p class="label"><span class="symbol">⚡</span>JOULES OF ENERGY PRODUCED</p>
@@ -211,13 +211,13 @@
             </div>
 
             <div class="data-card carbon-metric">
-                <p class="label"><span class="symbol">📊</span>POWER (Watts)</p>
+                <p class="label"><span class="symbol">📊</span>POWER (Wh)</p>
                 <h3 id="current-power-watts" class="value saving-value">0 W</h3>
             </div>
 
             <div class="data-card carbon-metric">
                 <p class="label"><span class="symbol">💡</span>EQUIVALENT LIGHT USAGE (15W)</p>
-                <h3 id="bulb-runtime-hours" class="value saving-value">0 hours</h3>
+                <h3 id="bulb-runtime-hours" class="value saving-value">0 minutes</h3>
             </div>
         </main>
     </div>
@@ -230,9 +230,12 @@
         const API_ENDPOINT = 'http://10.198.243.1:3000/api/sensor-data';
         const FETCH_INTERVAL_MS = 1000; 
         const JOULES_PER_STEP = 5.6;
+        const BULB_WATTAGE_W = 15; // 15W bulb
+        const BASELINE_STEPS = 10000; // start counting from 10,000
 
         let lastSuccessfulData = {
-            total_steps: Number(localStorage.getItem('pravaah_total_steps') || 800) // default 800
+            // store only incremental steps from API; baseline is separate
+            total_steps: Number(localStorage.getItem('pravaah_total_steps') || 0)
         };
 
         function updateDateTime() {
@@ -259,14 +262,33 @@
         }
 
         function renderDashboardData(apiData) {
-            const totalSteps = 8000 + (apiData.total_steps || 0);
-            const energyProducedJoules = totalSteps * JOULES_PER_STEP;
-            const currentPowerWatts = energyProducedJoules / 2;
+            // total steps = baseline 10,000 + live steps from API
+            const totalSteps = BASELINE_STEPS + (apiData.total_steps || 0);
 
-            const hoursRuntime = totalSteps / 7200;
-            let runtimeDisplay = hoursRuntime < 1
-                ? (hoursRuntime * 60).toFixed(1) + ' minutes'
-                : hoursRuntime.toFixed(2) + ' hours';
+            const energyProducedJoules = totalSteps * JOULES_PER_STEP;
+
+            // kept name same, but this is effectively energy / 3600
+            const currentPowerWatts = energyProducedJoules / 3600;
+
+            // Energy in Wh
+            const energyWh = energyProducedJoules / 3600;
+
+            // Time (in minutes) = (Energy (Wh) / Power (W)) * 60
+            const timeMinutes = (energyWh / BULB_WATTAGE_W) * 60;
+
+            let runtimeDisplay;
+            if (timeMinutes < 60) {
+                // less than 1 hour → minutes
+                runtimeDisplay = timeMinutes.toFixed(1) + ' minutes';
+            } else if (timeMinutes < 1440) {
+                // less than 1 day → hours
+                const hours = timeMinutes / 60;
+                runtimeDisplay = hours.toFixed(2) + ' hours';
+            } else {
+                // 1 day or more → days
+                const days = timeMinutes / (60 * 24);
+                runtimeDisplay = days.toFixed(2) + ' days';
+            }
 
             document.getElementById('total-steps').textContent = totalSteps.toLocaleString();
             document.getElementById('energy-produced').textContent = energyProducedJoules.toLocaleString();
